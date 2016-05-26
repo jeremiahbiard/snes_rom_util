@@ -137,19 +137,19 @@ void read_header() {
 
 	switch (header.reported_size) {
 		case 0x08:
-			strcpy(header.size_desc, "2 Mbit");
+			header.size = 2;
 			break;
 		case 0x09:
-			strcpy(header.size_desc, "4 Mbit");
+			header.size = 4;
 			break;
 		case 0x0a:
-			strcpy(header.size_desc, "8 Mbit");
+			heaer.size = 8;
 			break;
 		case 0x0b:
-			strcpy(header.size_desc, "16 Mbit");
+			header.size = 16;
 			break;
 		case 0x0c:
-			strcpy(header.size_desc, "32 Mbit");
+			header.size = 32;
 			break;
 		default:
 			strcpy(header.size_desc, "err");
@@ -175,7 +175,7 @@ void display_header() {
 	printf("Speed: %02x %s\n", header.speed, header.speed_desc);
 	printf("Map Mode: %s\n", header.map_mode_desc);
 	printf("Rom Type: %02x %s\n", header.type, header.type_desc);
-	printf("Header ROM Size: %02x (%s)\n", header.reported_size, header.size_desc);
+	printf("Header ROM Size: %02x (%d %s)\n", header.reported_size, header.size, header.size_desc);
 	printf("Calculated ROM Size: %lu\n", header.file_size);
 	printf("SRAM size: %02x %s\n", header.sram_size, header.sram_size_desc);
 	printf("Header Checksum: %04x\n", header.checksum);
@@ -265,7 +265,7 @@ void dump_memory() {
 
 	unsigned int i, j, k;
 	unsigned int lines = 16;
-	unsigned int base = 0x7fbc;
+	unsigned int base = 0xffbc;
 	for (i = 0; i < lines * 15; i += 15) {
 		for (j = 0; j < 15; j++) {
 			ascii[j] = rom_contents[base + j + i];
