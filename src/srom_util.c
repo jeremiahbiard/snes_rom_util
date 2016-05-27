@@ -223,20 +223,66 @@ void display_header() {
  *
  ******/
 void assemble() {
-	int addr = header.reset_vector;
-	int byte = rom_contents[addr];
-	char opcode[12];
-	//memset(opcode, '\0', sizeof(opcode));
+	int byte;
+	int pc = 0x0000;
+	int addr = 0;
+	int i;
+	for (i = 0; i < 30; i++) {
 
-	switch (byte) {
-		case 0x78:
-			strcpy(opcode, "SEI");		
-			break;
-		default:
-			strcpy(opcode, "NOP");
-			break;
+		int byte = rom_contents[pc];
+		char opcode[24];
+		//memset(opcode, '\0', sizeof(opcode));
+
+		switch (byte) {
+			case 0x18:
+				strcpy(opcode, "CLC");
+				pc += 1;
+				break;
+			case 0x48:
+				strcpy(opcode, "PHA");
+				pc += 1;
+				break;
+			case 0x78:
+				strcpy(opcode, "SEI");		
+				pc += 1;
+				break;
+			case 0x8d:
+				addr = rom_contents[pc + 1] | (rom_contents[pc + 2] << 8);
+				sprintf(opcode, "%s $%04x", "STA", addr);
+				pc += 3;
+				break;
+			case 0x9c:
+				addr = rom_contents[pc + 1] | (rom_contents[pc + 2] << 8);
+				sprintf(opcode, "%s $%04x", "STZ", addr);
+				pc += 3;
+				break;
+			case 0xa9:
+				sprintf(opcode, "%s $%04x", "LDA", rom_contents[pc + 1]);
+				pc += 2;
+				break;
+			case 0xc2:
+				sprintf(opcode, "%s $%02x", "REP", rom_contents[pc + 1]);
+				pc += 2;
+				break;
+			case 0xe2:
+				sprintf(opcode, "%s $%02x", "SEP", rom_contents[pc + 1]);	
+				pc += 2;
+				break;
+			case 0xeb:
+				strcpy(opcode, "XBA");
+				pc += 1;
+				break;
+			case 0xfb:
+				strcpy(opcode, "XCE");
+				pc += 1;
+				break;
+			default:
+				strcpy(opcode, "NOP");
+				pc += 1;
+				break;
+		}
+	printf("$%04x: %s\n", pc, opcode);
 	}
-	printf("$%04x\t$%02x\t%s\n", addr, byte, opcode);
 	return;
 }
 
@@ -292,7 +338,7 @@ void dump_memory() {
 
 	unsigned int i, j, k;
 	unsigned int lines = 16;
-	unsigned int base = 0xffbc;
+	unsigned int base = 0x0000;
 	for (i = 0; i < lines * 15; i += 15) {
 		for (j = 0; j < 15; j++) {
 			ascii[j] = rom_contents[base + j + i];
@@ -368,12 +414,12 @@ int main(void) {
 	char filename[32];
 	uint64_t rom_length;
 	X = 0x8000;
-	//X = 0x0000;
+	X = 0x0000;
 	//unsigned long rom_length;
 
 	//strcpy(filename, "Street Fighter Alpha 2 (U) [!].smc");
-	//strcpy(filename, "Final Fantasy II (USA).sfc");
-	strcpy(filename, "Donkey Kong Country 2 - Diddy's Kong Quest (USA) (En,Fr).sfc");
+	strcpy(filename, "Final Fantasy II (USA).sfc");
+	//strcpy(filename, "Donkey Kong Country 2 - Diddy's Kong Quest (USA) (En,Fr).sfc");
 	rom_length = load_rom(filename);
 	read_header();
 
