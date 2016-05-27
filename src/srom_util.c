@@ -26,14 +26,37 @@
 #define LOROM 0x7000
 #define HIROM 0xf000
 
-#define X 0x8000
-//#define X 0x0000
-
 // 0x186c7a
 FILE *rom_file;
 uint8_t *rom_contents;
+unsigned long X;
 
 rom_header header;
+
+unsigned int Mbi2Mb(unsigned int i) {
+	int r = i / 1000000;
+	r *= 8;
+	return r;
+}
+
+void calculate_checksum(void) {
+	unsigned long chunk_sum, checksum;
+	unsigned int last_byte = 1024 * 1024 / 2;	// Chunk size = 524288 bytes
+	unsigned int num_chunks = header.size / 4;
+	//printf("chunks %d\n", num_chunks);
+	int i, j;
+	checksum = 0;
+	for (i = 0; i < num_chunks; i++) {
+		chunk_sum = 0;
+		for (j = 0; j < last_byte; j++) {
+			chunk_sum += rom_contents[j + (last_byte * i)];
+		}
+		checksum += chunk_sum;
+	}
+	checksum &= 0xFFFF;
+	header.calculated_checksum = checksum;
+	return;
+}
 
 void read_header() {
 	
@@ -46,19 +69,20 @@ void read_header() {
 	header.sram_size = rom_contents[SRAM_SIZE_ADDR | X];
 	switch (header.sram_size) {
 		case 0x0:
-			strcpy(header.sram_size_desc, "(none)");
+			header.sram_size_int = 0;
 			break;
 		case 0x1:
-			strcpy(header.sram_size_desc, "16Kb");
+			header.sram_size_int = 16;
 			break;
 		case 0x2:
-			strcpy(header.sram_size_desc, "32Kb");
+			header.sram_size_int = 32;
 			break;
 		case 0x3:
-			strcpy(header.sram_size_desc, "64Kb");
+			header.sram_size_int = 64;
 			break;
 		default:
-			strcpy(header.sram_size_desc, "ERR");
+			header.sram_size_int = -1;
+			break;
 	}
 
 	header.country = rom_contents[COUNTRY_ADDR | X];
@@ -89,6 +113,7 @@ void read_header() {
 	header.version = rom_contents[VERSION_ADDR | X];
 	header.checksum_comp = rom_contents[CHECKSUM_COMP_ADDR | X] | (rom_contents[(CHECKSUM_COMP_ADDR + 1) | X] << 8);
 	header.checksum = rom_contents[CHECKSUM_ADDR | X] | (rom_contents[(CHECKSUM_ADDR + 1) | X]<< 8);
+
 
 	if (header.speed) {
 		strcpy(header.speed_desc, "FastROM (120ns)");
@@ -143,7 +168,7 @@ void read_header() {
 			header.size = 4;
 			break;
 		case 0x0a:
-			heaer.size = 8;
+			header.size = 8;
 			break;
 		case 0x0b:
 			header.size = 16;
@@ -152,9 +177,11 @@ void read_header() {
 			header.size = 32;
 			break;
 		default:
-			strcpy(header.size_desc, "err");
+			header.size = -1;
 			break;
 	}
+	
+	calculate_checksum();
 
 	header.reset_vector = rom_contents[0x7ffc | X] | (rom_contents[0x7ffd | X] << 8);
 
@@ -175,12 +202,12 @@ void display_header() {
 	printf("Speed: %02x %s\n", header.speed, header.speed_desc);
 	printf("Map Mode: %s\n", header.map_mode_desc);
 	printf("Rom Type: %02x %s\n", header.type, header.type_desc);
-	printf("Header ROM Size: %02x (%d %s)\n", header.reported_size, header.size, header.size_desc);
+	printf("Header ROM Size: %02x (%d MBit)\n", header.reported_size, header.size);
 	printf("Calculated ROM Size: %lu\n", header.file_size);
-	printf("SRAM size: %02x %s\n", header.sram_size, header.sram_size_desc);
+	printf("SRAM size: %02x %dKb\n", header.sram_size, header.sram_size_int);
 	printf("Header Checksum: %04x\n", header.checksum);
 	printf("Header Checksum Complement: %04x\n", header.checksum_comp);
-	//printf("Calculated Checksum: %s\n", "placeholder");
+	printf("Calculated Checksum: %04x\n", header.calculated_checksum);
 	printf("Output: %s\n", header.video_mode);
 	//printf("CRC32: %s\n", "placeholder");
 	printf("Region: %s\n", header.country_desc);
@@ -340,6 +367,8 @@ int main(void) {
 
 	char filename[32];
 	uint64_t rom_length;
+	X = 0x8000;
+	//X = 0x0000;
 	//unsigned long rom_length;
 
 	//strcpy(filename, "Street Fighter Alpha 2 (U) [!].smc");
@@ -348,7 +377,7 @@ int main(void) {
 	rom_length = load_rom(filename);
 	read_header();
 
-	header.file_size = rom_length;
+	header.file_size = Mbi2Mb(rom_length);
 
 	char input[32];
 	memset(input, '\0', sizeof(char));
